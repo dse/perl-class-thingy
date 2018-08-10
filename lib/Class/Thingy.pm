@@ -60,12 +60,16 @@ sub public (*;@) {
     my ($method_name, %args) = @_;
     my $class_name = caller;
     my $sub_name = "${class_name}::${method_name}";
+    my $defaults_name = "${class_name}::CLASS_THINGY_DEFAULTS";
     my $sub = sub {
         my $self = shift;
         return $self->{$method_name} = shift if scalar @_;
         return $self->{$method_name};
     };
     no strict "refs";
+    if (exists $args{default}) {
+        ${$defaults_name}{$method_name} = $args{default};
+    }
     *{$sub_name} = $sub;
 }
 
