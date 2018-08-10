@@ -11,6 +11,9 @@ Class::Thingy - another minimalistic object framework
 
 our $VERSION = '0.0';
 
+use Carp;
+use mro;
+
 use base "Exporter";
 
 our @EXPORT = qw(public);
@@ -60,15 +63,48 @@ sub public (*;@) {
     my ($method_name, %args) = @_;
     my $class_name = caller;
     my $sub_name = "${class_name}::${method_name}";
-    my $defaults_name = "${class_name}::CLASS_THINGY_DEFAULTS";
+    my $defaults_name      = "${class_name}::CLASS_THINGY_DEFAULTS";
+    my $sub_defaults_name  = "${class_name}::CLASS_THINGY_SUB_DEFAULTS";
+    my $lazy_defaults_name = "${class_name}::CLASS_THINGY_LAZY_DEFAULTS";
     my $sub = sub {
         my $self = shift;
         return $self->{$method_name} = shift if scalar @_;
+
+        my $mro = mro::get_linear_isa(ref $self);
+        my @mro = @$mro;
+
+        my $sub;
+        foreach my $mro (@mro) {
+            my $lazy_defaults_name = "${mro}::CLASS_THINGY_LAZY_DEFAULTS";
+            foreach my $key (keys %{$lazy_defaults_name}) {
+                if (!exists $self->{$key}) {
+                    $self->{$key} = ${$lazy_defaults_name}{$key}->();
+                }
+            }
+        }
+
         return $self->{$method_name};
     };
     no strict "refs";
+    my $count = 0;
+    $count += 1 if exists $args{default};
+    $count += 1 if exists $args{sub_default};
+    $count += 1 if exists $args{lazy_default};
+    if ($count > 1) {
+        carp "Cannot specify more than one type of default for $class_name property $method_name.";
+    }
     if (exists $args{default}) {
         ${$defaults_name}{$method_name} = $args{default};
+    } elsif (exists $args{sub_default}) {
+        if (ref $args{sub_default} ne "CODE") {
+            carp "Cannot specify other than a subroutine reference for $class_name property $method_name as a sub_default.";
+        }
+        ${$sub_defaults_name}{$method_name} = $args{sub_default};
+    } elsif (exists $args{lazy_default}) {
+        if (ref $args{lazy_default} ne "CODE") {
+            carp "Cannot specify other than a subroutine reference for $class_name property $method_name as a lazy_default.";
+        }
+        ${$lazy_defaults_name}{$method_name} = $args{lazy_default};
     }
     *{$sub_name} = $sub;
 }

@@ -13,6 +13,9 @@ package My::Test::Class {
 
     public default1, default => 1;
     public default2, default => 2;
+    public default3, sub_default => sub {
+        return 5;
+    };
 };
 
 package My::Test::Class::Child {
@@ -28,7 +31,7 @@ package main {
     use Test::More;
     use Data::Dumper;
 
-    plan tests => 17;
+    plan tests => 19;
 
     my $a1 = My::Test::Class->new();
     my $a2 = My::Test::Class->new(foo => 5);
@@ -53,4 +56,6 @@ package main {
     ok($a1->default1 == 1, "test 15");
     ok($a1->default2 == 2, "test 16");
     ok($a4->default2 == 4, "test 17");
+    ok($a1->default3 == 5, "test 18");
+    ok($a4->default3 == 5, "test 19");
 };

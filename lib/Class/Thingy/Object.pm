@@ -18,10 +18,21 @@ sub new {
     # build this object's hash from defaults
     my %hash;
     foreach my $mro (@mro) {
-        my $hash_name = "${mro}::CLASS_THINGY_DEFAULTS";
-        my %addhash;
-        no strict "refs";
-        %hash = (%hash, %{$hash_name});
+        my $defaults_name = "${mro}::CLASS_THINGY_DEFAULTS";
+        my $sub_defaults_name  = "${mro}::CLASS_THINGY_SUB_DEFAULTS";
+        my $lazy_defaults_name = "${mro}::CLASS_THINGY_LAZY_DEFAULTS";
+        foreach my $key (keys %{$defaults_name}) {
+            no strict "refs";
+            if (exists ${$defaults_name}{$key}) {
+                $hash{$key} = ${$defaults_name}{$key};
+            }
+        }
+        foreach my $key (keys %{$sub_defaults_name}) {
+            no strict "refs";
+            if (exists ${$sub_defaults_name}{$key}) {
+                $hash{$key} = ${$sub_defaults_name}{$key}->();
+            }
+        }
     }
 
     # then override with anything passed to the constructor
