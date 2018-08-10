@@ -4,7 +4,6 @@ use strict;
 use v5.10.0;
 
 our $VERSION = '0.0';
-our $ABSTRACT = '...';
 
 use Carp;
 

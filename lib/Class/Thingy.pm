@@ -3,8 +3,13 @@ use warnings;
 use strict;
 use v5.10.0;
 
+=head1 NAME
+
+Class::Thingy - another minimalistic object framework
+
+=cut
+
 our $VERSION = '0.0';
-our $ABSTRACT = '...';
 
 use base "Exporter";
 
