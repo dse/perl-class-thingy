@@ -1,7 +1,10 @@
-#!perl -T
+##!perl -T
 use 5.010;
 use strict;
 use warnings;
+
+use FindBin;
+use lib "${FindBin::Bin}/../lib";
 
 package My::Test::Class {
     use Class::Thingy;
@@ -9,23 +12,24 @@ package My::Test::Class {
     public bar;
 };
 
+package My::Test::Class::Child {
+    use Class::Thingy;
+    use base 'My::Test::Class';
+    public cat;
+    public dog;
+};
+
 package main {
     use Test::More;
-    use Data::Dumper;
-    print Dumper \@My::Test::Class::ISA;
-    my $o;
-    $o = My::Test::Class->new();
-    print Dumper $o;
-    $o = My::Test::Class->new(foo => 5, bar => 10);
-    print Dumper $o;
-    print Dumper $o->foo;
-    print Dumper $o->bar;
-    $o->foo(20);
-    print Dumper $o;
-    print Dumper $o->foo;
-    print Dumper $o->bar;
-    $o->bar(40);
-    print Dumper $o;
-    print Dumper $o->foo;
-    print Dumper $o->bar;
+    plan tests => 7;
+    my $a1 = My::Test::Class->new();
+    my $a2 = My::Test::Class->new(foo => 5);
+    my $a3 = My::Test::Class->new({ foo => 5 });
+    ok(!defined $a1->foo, "test 1");
+    ok(!defined $a1->bar, "test 2");
+    ok($a1->isa("My::Test::Class"), "test 3");
+    ok($a1->isa("Class::Thingy::Object"), "test 4");
+    ok($a1->foo(5) == 5, "test 5");
+    ok($a1->foo == 5, "test 6");
+    ok($a1->foo() == 5, "test 7");
 };
