@@ -3,6 +3,9 @@ use warnings;
 use strict;
 use v5.10.0;
 
+our $VERSION = '0.0';
+our $ABSTRACT = '...';
+
 use base "Exporter";
 
 our @EXPORT = qw(public);
