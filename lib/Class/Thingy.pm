@@ -50,8 +50,8 @@ sub add_superclass_to_packages {
     # method resolution order.  If C::T::O is already in each
     # package's @ISA list, nothing is changed.
     foreach my $package (@PACKAGES_USING_ME) {
-        no strict "refs";
         my $isa_var_name = "${package}::ISA";
+        no strict "refs";
         if (!grep { $_ eq $CTO_CLASS_NAME } @{$isa_var_name}) {
             push(@{$isa_var_name}, $CTO_CLASS_NAME);
             require Class::Thingy::Object;
@@ -69,23 +69,17 @@ sub public (*;@) {
     my $sub = sub {
         my $self = shift;
         return $self->{$method_name} = shift if scalar @_;
-
-        my $mro = mro::get_linear_isa(ref $self);
-        my @mro = @$mro;
-
-        my $sub;
+        return $self->{$method_name} if exists $self->{$method_name};
+        my @mro = @{ mro::get_linear_isa(ref $self) };
         foreach my $mro (@mro) {
-            my $lazy_defaults_name = "${mro}::CLASS_THINGY_LAZY_DEFAULTS";
-            foreach my $key (keys %{$lazy_defaults_name}) {
-                if (!exists $self->{$key}) {
-                    $self->{$key} = ${$lazy_defaults_name}{$key}->();
-                }
+            my $mro_lazy_defaults_name = "${mro}::CLASS_THINGY_LAZY_DEFAULTS";
+            no strict "refs";
+            if (exists ${$mro_lazy_defaults_name}{$method_name}) {
+                return $self->{$method_name} = ${$mro_lazy_defaults_name}{$method_name}->();
             }
         }
-
-        return $self->{$method_name};
+        return;
     };
-    no strict "refs";
     my $count = 0;
     $count += 1 if exists $args{default};
     $count += 1 if exists $args{sub_default};
@@ -94,18 +88,22 @@ sub public (*;@) {
         carp "Cannot specify more than one type of default for $class_name property $method_name.";
     }
     if (exists $args{default}) {
+        no strict "refs";
         ${$defaults_name}{$method_name} = $args{default};
     } elsif (exists $args{sub_default}) {
         if (ref $args{sub_default} ne "CODE") {
             carp "Cannot specify other than a subroutine reference for $class_name property $method_name as a sub_default.";
         }
+        no strict "refs";
         ${$sub_defaults_name}{$method_name} = $args{sub_default};
     } elsif (exists $args{lazy_default}) {
         if (ref $args{lazy_default} ne "CODE") {
             carp "Cannot specify other than a subroutine reference for $class_name property $method_name as a lazy_default.";
         }
+        no strict "refs";
         ${$lazy_defaults_name}{$method_name} = $args{lazy_default};
     }
+    no strict "refs";
     *{$sub_name} = $sub;
 }
 
