@@ -16,6 +16,11 @@ package My::Test::Class {
     public default3, sub_default => sub {
         return 5;
     };
+    public default4, lazy_default => sub {
+        state $count = 0;
+        warn("$count\n");
+        return ($count += 1);
+    };
 };
 
 package My::Test::Class::Child {
@@ -31,7 +36,7 @@ package main {
     use Test::More;
     use Data::Dumper;
 
-    plan tests => 19;
+    plan tests => 22;
 
     my $a1 = My::Test::Class->new();
     my $a2 = My::Test::Class->new(foo => 5);
@@ -58,4 +63,9 @@ package main {
     ok($a4->default2 == 4, "test 17");
     ok($a1->default3 == 5, "test 18");
     ok($a4->default3 == 5, "test 19");
+
+    ok($a1->default4 == 1, "test 20");
+    ok($a4->default4 == 2, "test 21");
+    $a2->default4(5);
+    ok($a2->default4() == 5, "test 22");
 };
