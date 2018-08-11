@@ -21,14 +21,13 @@ sub new {
         my $defaults_name = "${mro}::CLASS_THINGY_DEFAULTS";
         my $sub_defaults_name  = "${mro}::CLASS_THINGY_SUB_DEFAULTS";
         my $lazy_defaults_name = "${mro}::CLASS_THINGY_LAZY_DEFAULTS";
+        no strict "refs";
         foreach my $key (keys %{$defaults_name}) {
-            no strict "refs";
             if (exists ${$defaults_name}{$key}) {
                 $hash{$key} = ${$defaults_name}{$key};
             }
         }
         foreach my $key (keys %{$sub_defaults_name}) {
-            no strict "refs";
             if (exists ${$sub_defaults_name}{$key}) {
                 $hash{$key} = ${$sub_defaults_name}{$key}->();
             }
