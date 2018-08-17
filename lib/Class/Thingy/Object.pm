@@ -15,10 +15,10 @@ sub new {
     my $mro = mro::get_linear_isa($class);
     my @mro = reverse @$mro;
 
-    # build this object's hash from defaults
+    # build this object's data from defaults
     my %hash;
     foreach my $mro (@mro) {
-        my $defaults_name = "${mro}::CLASS_THINGY_DEFAULTS";
+        my $defaults_name      = "${mro}::CLASS_THINGY_DEFAULTS";
         my $sub_defaults_name  = "${mro}::CLASS_THINGY_SUB_DEFAULTS";
         my $lazy_defaults_name = "${mro}::CLASS_THINGY_LAZY_DEFAULTS";
         no strict "refs";

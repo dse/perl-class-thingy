@@ -7,6 +7,25 @@ use v5.10.0;
 
 Class::Thingy - another minimalistic object framework
 
+=head1 SYNOPSIS
+
+    package My::Class;
+
+    # or whatever
+    use warnings;
+    use strict;
+    use v5.10.0;
+
+    use Class::Thingy;
+
+    public magnitude;
+    public x, default => 0;
+    public y, default => 0;
+
+=head1 DESCRIPTION
+
+
+
 =cut
 
 our $VERSION = '0.0';
