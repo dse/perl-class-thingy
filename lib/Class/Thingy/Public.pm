@@ -5,7 +5,7 @@ use v5.10.0;
 
 our $VERSION = '0.0';
 
-our $DEBUG = 1;
+our $DEBUG = 0;
 
 use Carp;
 use mro;

@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use v5.10.0;
 
-our $DEBUG = 1;
+our $DEBUG = 0;
 
 use base qw(Exporter);
 
