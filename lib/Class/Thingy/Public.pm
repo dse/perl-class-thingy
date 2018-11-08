@@ -31,7 +31,7 @@ sub public (*;@) {
             my $mro_lazy_defaults_name = "${mro}::CLASS_THINGY_LAZY_DEFAULTS";
             no strict "refs";
             if (exists ${$mro_lazy_defaults_name}{$method_name}) {
-                return $self->{$method_name} = ${$mro_lazy_defaults_name}{$method_name}->();
+                return $self->{$method_name} = ${$mro_lazy_defaults_name}{$method_name}->($self);
             }
         }
         return;
@@ -45,6 +45,9 @@ sub public (*;@) {
     }
     if (exists $args{default}) {
         no strict "refs";
+
+        ${$defaults_name} ? undef : undef; # shut up perl
+
         ${$defaults_name}{$method_name} = $args{default};
 
         print STDERR ("Class::Thingy::Public::public: ${^GLOBAL_PHASE}: \${$defaults_name}{$method_name} = $args{default}\n") if $DEBUG;
@@ -54,6 +57,9 @@ sub public (*;@) {
             carp "Cannot specify other than a subroutine reference for $class_name property $method_name as a sub_default.";
         }
         no strict "refs";
+
+        ${$sub_defaults_name} ? undef : undef; # shut up perl
+
         ${$sub_defaults_name}{$method_name} = $args{sub_default};
 
         print STDERR ("Class::Thingy::Public::public: ${^GLOBAL_PHASE}: \${$sub_defaults_name}{$method_name} = $args{sub_default}\n") if $DEBUG;
@@ -63,6 +69,9 @@ sub public (*;@) {
             carp "Cannot specify other than a subroutine reference for $class_name property $method_name as a lazy_default.";
         }
         no strict "refs";
+
+        ${$lazy_defaults_name} ? undef : undef; # shut up perl
+
         ${$lazy_defaults_name}{$method_name} = $args{lazy_default};
 
         print STDERR ("Class::Thingy::Public::public: ${^GLOBAL_PHASE}: \${$lazy_defaults_name}{$method_name} = $args{lazy_default}\n") if $DEBUG;
