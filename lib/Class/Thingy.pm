@@ -3,63 +3,81 @@ use warnings;
 use strict;
 use v5.10.0;
 
-use lib "$ENV{HOME}/git/dse.d/perl-class-thingy/lib";
-
-use base "Class::Thingy::Public";
-
+use base 'Exporter';
 our @EXPORT    = qw(public);
 our @EXPORT_OK = qw(public);
 
-use Class::Thingy::Util qw(debug);
+use mro;
 
-sub public (*;@) {
-    goto &Class::Thingy::Public::public;
-}
+use constant CTO => 'Class::Thingy::Object';
 
-our @PACKAGES_USING_ME;
-our $CTO_CLASS_NAME = "Class::Thingy::Object";
-
-# This cannot be done at the BEGIN phase.  Imports are usually done at
-# the BEGIN phase.
-INIT {
-    add_superclass_to_packages();
-}
-
-# We intercept import to keep track of classes that use us.
 sub import {
-    my $package = caller;
-    push(@PACKAGES_USING_ME, $package);
+    my $class = caller;
 
-    debug("added %s to \@PACKAGES_USING_ME", $package);
+    # make this class a subclass of C::T::O.
+    if (!$class->isa(CTO)) {
+        require Class::Thingy::Object;
+        my $isa_var_name = "${class}::ISA";
+        no strict 'refs';
+        push(@{$isa_var_name}, CTO);
+    }
 
-    # In case of any imports of Class::Thingy after the BEGIN phase
-    # (typically runtime).
-    if (grep { ${^GLOBAL_PHASE} eq $_ } qw(INIT RUN END DESTRUCT)) {
-        add_superclass_to_packages();
+    # remove redundant instances of C::T::O from MRO.
+    my $rev_classs = mro::get_isarev($class);
+    foreach my $rev_class (@$rev_classs) {
+        my $isa_var_name = "${class}::ISA";
+        no strict 'refs';
+        @{$isa_var_name} = grep { $_ ne CTO } @{$isa_var_name};
     }
 
     # Go to the original import method.
-    my $super_import = $package->can("SUPER::import");
+    my $super_import = $class->can('SUPER::import');
     goto &$super_import if $super_import;
 }
 
-sub add_superclass_to_packages {
-    # We add Class::Thingy::Object as a superclass of any packages
-    # that don't have us listed as a superclass already.  We append it
-    # so any "new" methods added afterwards get favored by the default
-    # method resolution order.  If C::T::O is already in each
-    # package's @ISA list, nothing is changed.
-    foreach my $package (@PACKAGES_USING_ME) {
-        my $isa_var_name = "${package}::ISA";
-        no strict "refs";
-        if (!grep { $_ eq $CTO_CLASS_NAME } @{$isa_var_name}) {
-            push(@{$isa_var_name}, $CTO_CLASS_NAME);
+sub public(*;@) {
+    my ($method, %args) = @_;
+    my $class = caller;
+    my $sub_name = "${class}::${method}";
+    my $sub;
 
-            debug("added %s to \@%s", $CTO_CLASS_NAME, $isa_var_name);
-
-            require Class::Thingy::Object;
-        }
+    if (defined $args{lazy_default}) {
+        $args{builder} = delete $args{lazy_default};
     }
+
+    if (defined $args{delegate}) {
+        my $delegate = $args{delegate};
+        my $method = $args{method} // $method;
+        $sub = sub {
+            my $self = shift;
+            return $self->$delegate->$method(@_);
+        };
+    } elsif (defined $args{builder} && ref $args{builder} eq 'CODE') {
+        my $builder = $args{builder};
+        $sub = sub {
+            my $self = shift;
+            return $self->{$method} = shift if scalar @_;
+            return $self->{$method} if exists $self->{$method};
+            return $self->{$method} = $self->$builder();
+        };
+    } elsif (defined $args{default}) {
+        my $default = $args{default};
+        $sub = sub {
+            my $self = shift;
+            return $self->{$method} = shift if scalar @_;
+            return $self->{$method} if exists $self->{$method};
+            return $self->{$method} = $default;
+        };
+    } else {
+        $sub = sub {
+            my $self = shift;
+            return $self->{$method} = shift if scalar @_;
+            return $self->{$method} if exists $self->{$method};
+            return;
+        };
+    }
+    no strict 'refs';
+    *{$sub_name} = $sub;
 }
 
 1;
