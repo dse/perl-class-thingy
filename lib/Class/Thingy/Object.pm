@@ -8,6 +8,7 @@ sub new {
     my $self = bless({}, $class);
     _new_args($self, @_);
     $self->init() if $self->can('init');
+    $self->_cto_builder() if $self->can('_cto_builder');
     return $self;
 }
 

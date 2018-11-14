@@ -11,6 +11,8 @@ use mro;
 
 use constant CTO => 'Class::Thingy::Object';
 
+our %builder;
+
 sub import {
     my $class = caller;
 
@@ -43,6 +45,12 @@ sub public(*;@) {
 
     if (defined $args{lazy_default}) {
         $args{builder} = delete $args{lazy_default};
+        $args{lazy} = 1;
+    }
+
+    if (defined $args{sub_default}) {
+        $args{builder} = delete $args{sub_default};
+        $args{lazy} = 0;
     }
 
     if (defined $args{delegate}) {
@@ -60,6 +68,22 @@ sub public(*;@) {
             return $self->{$method} if exists $self->{$method};
             return $self->{$method} = $self->$builder();
         };
+        if (!$args{lazy}) {
+            my $cto_builder_sub_name = "${class}::_cto_builder";
+            my $cto_builder_sub = $class->can('_cto_builder');
+            if (!$cto_builder_sub) {
+                $cto_builder_sub = sub {
+                    my ($self) = @_;
+                    foreach my $builder (@{$builder{$class}}) {
+                        $self->$builder();
+                    }
+                    $self->SUPER::_cto_builder if $self->can('SUPER::_cto_builder');
+                };
+                no strict 'refs';
+                *{$cto_builder_sub_name} = $cto_builder_sub;
+            }
+            push(@{$builder{$class}}, $method);
+        }
     } elsif (defined $args{default}) {
         my $default = $args{default};
         $sub = sub {
