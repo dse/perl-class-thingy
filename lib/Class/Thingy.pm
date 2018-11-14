@@ -62,11 +62,16 @@ sub public(*;@) {
         };
     } elsif (defined $args{builder} && ref $args{builder} eq 'CODE') {
         my $builder = $args{builder};
+        my $after_builder = $args{after_builder};
         $sub = sub {
             my $self = shift;
             return $self->{$method} = shift if scalar @_;
             return $self->{$method} if exists $self->{$method};
-            return $self->{$method} = $self->$builder();
+            my $result = $self->{$method} = $self->$builder();
+            if ($after_builder) {
+                $self->$after_builder();
+            }
+            return $result;
         };
         if (!$args{lazy}) {
             my $cto_builder_sub_name = "${class}::_cto_builder";
@@ -100,8 +105,21 @@ sub public(*;@) {
             return;
         };
     }
-    no strict 'refs';
-    *{$sub_name} = $sub;
+    {
+        no strict 'refs';
+        *{$sub_name} = $sub;
+    }
+
+    my $delete_name = delete $args{delete};
+    if (defined $delete_name) {
+        my $delete_sub_name = "${class}::${delete_name}";
+        my $sub = sub {
+            my $self = shift;
+            return delete $self->{$method};
+        };
+        no strict 'refs';
+        *{$delete_sub_name} = $sub;
+    }
 }
 
 1;
