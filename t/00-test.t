@@ -13,10 +13,15 @@ package My::Test::Class {
 
     public default1, default => 1;
     public default2, default => 2;
+    public builder;
     public default3, sub_default => sub {
+        my ($self) = @_;
+        $self->builder(1);
         return 5;
     };
     public default4, lazy_default => sub {
+        my ($self) = @_;
+        $self->builder(2);
         state $count = 0;
         warn("$count\n");
         return ($count += 1);
@@ -36,7 +41,7 @@ package main {
     use Test::More;
     use Data::Dumper;
 
-    plan tests => 22;
+    plan tests => 25;
 
     my $a1 = My::Test::Class->new();
     my $a2 = My::Test::Class->new(foo => 5);
@@ -44,6 +49,7 @@ package main {
     my $a4 = My::Test::Class::Child->new();
 
     ok(!defined $a1->foo, "test 1");
+    ok($a1->builder == 1, "test 1.5");
     ok(!defined $a1->bar, "test 2");
     ok(!defined $a1->foo(), "test 1a");
     ok(!defined $a1->bar(), "test 2a");
@@ -64,7 +70,9 @@ package main {
     ok($a1->default3 == 5, "test 18");
     ok($a4->default3 == 5, "test 19");
 
+    ok($a1->builder == 1, "test 19.5");
     ok($a1->default4 == 1, "test 20");
+    ok($a1->builder == 2, "test 20.5");
     ok($a4->default4 == 2, "test 21");
     $a2->default4(5);
     ok($a2->default4() == 5, "test 22");
