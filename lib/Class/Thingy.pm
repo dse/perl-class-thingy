@@ -60,51 +60,54 @@ sub public(*;@) {
             my $self = shift;
             return $self->$delegate->$method(@_);
         };
-    } elsif (defined $args{builder} && ref $args{builder} eq 'CODE') {
-        my $builder = $args{builder};
-        my $after_builder = $args{after_builder};
-        $sub = sub {
-            my $self = shift;
-            return $self->{$method} = shift if scalar @_;
-            return $self->{$method} if exists $self->{$method};
-            my $result = $self->{$method} = $self->$builder();
-            if ($after_builder) {
-                $self->$after_builder();
-            }
-            return $result;
-        };
-        if (!$args{lazy}) {
-            my $cto_builder_sub_name = "${class}::_cto_builder";
-            my $cto_builder_sub = $class->can('_cto_builder');
-            if (!$cto_builder_sub) {
-                $cto_builder_sub = sub {
-                    my ($self) = @_;
-                    foreach my $builder (@{$builder{$class}}) {
-                        $self->$builder();
-                    }
-                    $self->SUPER::_cto_builder if $self->can('SUPER::_cto_builder');
-                };
-                no strict 'refs';
-                *{$cto_builder_sub_name} = $cto_builder_sub;
-            }
-            push(@{$builder{$class}}, $method);
-        }
-    } elsif (defined $args{default}) {
-        my $default = $args{default};
-        $sub = sub {
-            my $self = shift;
-            return $self->{$method} = shift if scalar @_;
-            return $self->{$method} if exists $self->{$method};
-            return $self->{$method} = $default;
-        };
     } else {
-        $sub = sub {
-            my $self = shift;
-            return $self->{$method} = shift if scalar @_;
-            return $self->{$method} if exists $self->{$method};
-            return;
-        };
+        if (defined $args{builder} && ref $args{builder} eq 'CODE') {
+            my $builder = $args{builder};
+            my $after_builder = $args{after_builder};
+            $sub = sub {
+                my $self = shift;
+                return $self->{$method} = shift if scalar @_;
+                return $self->{$method} if exists $self->{$method};
+                my $result = $self->{$method} = $self->$builder();
+                if ($after_builder) {
+                    $self->$after_builder();
+                }
+                return $result;
+            };
+            if (!$args{lazy}) {
+                my $cto_builder_sub_name = "${class}::_cto_builder";
+                my $cto_builder_sub = $class->can('_cto_builder');
+                if (!$cto_builder_sub) {
+                    $cto_builder_sub = sub {
+                        my ($self) = @_;
+                        foreach my $builder (@{$builder{$class}}) {
+                            $self->$builder();
+                        }
+                        $self->SUPER::_cto_builder if $self->can('SUPER::_cto_builder');
+                    };
+                    no strict 'refs';
+                    *{$cto_builder_sub_name} = $cto_builder_sub;
+                }
+                push(@{$builder{$class}}, $method);
+            }
+        } elsif (defined $args{default}) {
+            my $default = $args{default};
+            $sub = sub {
+                my $self = shift;
+                return $self->{$method} = shift if scalar @_;
+                return $self->{$method} if exists $self->{$method};
+                return $self->{$method} = $default;
+            };
+        } else {
+            $sub = sub {
+                my $self = shift;
+                return $self->{$method} = shift if scalar @_;
+                return $self->{$method} if exists $self->{$method};
+                return;
+            };
+        }
     }
+
     {
         no strict 'refs';
         *{$sub_name} = $sub;
