@@ -256,6 +256,6 @@ property.  If the property is accessed via setter again and a builder
 is specified, the builder will be executed again to set the property's
 value.
 
-=end
+=cut
 
 1;
