@@ -11,8 +11,14 @@ use mro;
 
 use constant CTO => 'Class::Thingy::Object';
 
+# list of non-lazy builders to call by class on object initialization.
 our %builder;
 
+# when another module calls:
+#
+#     use Class::Thingy;
+#
+# this is called.
 sub import {
     my $class = caller;
 
@@ -61,23 +67,6 @@ sub public(*;@) {
             return $self->$delegate->$method(@_);
         };
     } else {
-
-        # set/get examples:
-        #
-        #     preprocess as set
-        #     set => sub {
-        #         my ($self, $value) = @_;
-        #         # change $value
-        #         return $value
-        #     },
-        #
-        #     postprocess a get
-        #     get => sub {
-        #         my ($self, $value) = @_;
-        #         # change $value
-        #         return $value
-        #     },
-
         my $set               = $args{set};
         my $get               = $args{get};
         my $has_set           = eval { ref $set eq 'CODE' };
@@ -153,5 +142,118 @@ sub public(*;@) {
         *{$delete_sub_name} = $sub;
     }
 }
+
+=head1 NAME
+
+Class::Thingy - Another object framework
+
+=head1 SYNOPSIS
+
+    package My::Class;
+    use Class::Thingy;
+
+    public 'x';
+    public 'y';
+
+    sub init {
+        my ($self) = @_;
+    }
+
+=head1 DESCRIPTION
+
+=head1 PROPERTY ATTRIBUTES
+
+=head2 default
+
+    public 'x', 'default' => 50;
+
+Specifies a default value for an object's property.
+
+=head2 builder
+
+    public 'foo', 'builder' => sub {
+        my ($self) = @_;
+        my $value;
+        #
+        # run some code to set $value.
+        #
+        return $value;
+    };
+
+Specifies a subroutine that returns a default value for an object's
+property.
+
+=head2 lazy
+
+    public 'foo', 'lazy' => 1, 'builder' => sub {
+        my ($self) = @_;
+        my $value;
+        #
+        # run some code to set $value.
+        #
+        return $value;
+    };
+
+Wait until the getter is first used before running the builder.
+
+=head2 set
+
+    public 'foo', 'set' => sub {
+        my ($self, $value) = @_; # receives the value passed to the setter
+        #
+        # run some code.  you can change $value.
+        #
+        return $value;           # specifies the property's new value
+    };
+
+Code to run before setting a property's value.
+
+=head2 get
+
+    public 'foo', 'get' => sub {
+        my ($self, $value) = @_; # receives the property's value
+        #
+        # run some code.  you can change $value.
+        #
+        return $value;           # returned by the getter to the caller
+    };
+
+Code to run after fetching a property's value and before returning to
+the caller.
+
+=head2 after_builder
+
+    public 'foo', 'builder' => sub {
+        ...
+    }, 'after_builder' => sub {
+        my ($self) = @_;
+        #
+        # run some code.
+        #
+    };
+
+Code to run after a builder is executed, before returning to the
+caller.
+
+=head2 delegate
+
+    public 'foo', 'delegate' => 'bar';
+
+$object->foo effectively becomes $object->bar->foo.
+
+=head2 method
+
+    public 'foo', 'delegate' => 'bar', 'method' => 'woof';
+
+$object->foo effectively becomes $object->bar->woof.
+
+=head2 delete
+
+    public 'foo', 'delete' => 'deleteFoo';
+
+Create a method, 'deleteFoo' in this example, to delete an object's
+property.  If the property is accessed via setter again and a builder
+is specified, the builder will be executed again to set the property's
+value.
 
 1;
