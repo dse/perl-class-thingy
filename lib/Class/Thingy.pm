@@ -69,12 +69,8 @@ sub public(*;@) {
     } else {
         my $set               = $args{set};
         my $get               = $args{get};
-        my $has_set           = eval { ref $set eq 'CODE' };
-        my $has_get           = eval { ref $get eq 'CODE' };
         my $builder           = $args{builder};
         my $after_builder     = $args{after_builder};
-        my $has_builder       = eval { ref $builder       eq 'CODE' };
-        my $has_after_builder = eval { ref $after_builder eq 'CODE' };
         my $lazy              = $args{lazy};
         my $has_default       = exists $args{default};
         my $default           = $args{default};
@@ -99,22 +95,22 @@ sub public(*;@) {
         $sub = sub {
             my $self = shift;
             if (scalar @_) {
-                if ($has_set) {
+                if (defined $set && eval { ref $set eq 'CODE' } || $self->can($set)) {
                     return $self->{$method} = $self->$set(shift);
                 } else {
                     return $self->{$method} = shift;
                 }
             }
             if (exists $self->{$method}) {
-                if ($has_get) {
+                if (defined $get && eval { ref $get eq 'CODE' } || $self->can($get)) {
                     return $self->$get($self->{$method});
                 } else {
                     return $self->{$method};
                 }
             }
-            if ($has_builder) {
+            if (defined $builder && eval { ref $builder eq 'CODE' } || $self->can($builder)) {
                 my $result = $self->{$method} = $self->$builder();
-                if ($has_after_builder) {
+                if (defined $after_builder && $after_builder && eval { ref $after_builder eq 'CODE' } || $self->can($after_builder)) {
                     $self->$after_builder();
                 }
                 return $result;
