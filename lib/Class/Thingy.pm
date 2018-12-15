@@ -137,7 +137,7 @@ sub public(*;@) {
                         return $self->{$method};
                     }
                 }
-                if (defined $builder && $builder && (eval { ref $builder eq 'CODE' } || $self->can($builder))) {
+                if ($builder && (eval { ref $builder eq 'CODE' } || $self->can($builder))) {
                     my $result = $self->{$method} = $self->$builder();
                     if ($after_builder && (eval { ref $after_builder eq 'CODE' } || $self->can($after_builder))) {
                         $self->$after_builder();
