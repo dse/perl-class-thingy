@@ -47,7 +47,6 @@ sub public(*;@) {
     my ($method, %args) = @_;
     my $class = caller;
     my $sub_name = "${class}::${method}";
-    my $sub;
 
     if (defined $args{lazy_default}) { # legacy
         $args{builder} = delete $args{lazy_default};
@@ -66,94 +65,116 @@ sub public(*;@) {
     if (defined $args{delegate}) {
         my $delegate = $args{delegate};
         my $method = $args{method} // $method;
-        $sub = sub {
+        my $sub = sub {
             my $self = shift;
             return $self->$delegate->$method(@_);
         };
         { no strict 'refs'; *{$sub_name} = $sub; }
-    } else {
-        my $set               = $args{set};
-        my $after_set         = $args{after_set};
-        my $get               = $args{get};
-        my $builder           = $args{builder};
-        my $after_builder     = $args{after_builder};
-        my $lazy              = $args{lazy};
-        my $has_default       = exists $args{default};
-        my $default           = $args{default};
+        return;
+    }
 
-        if (!$lazy) {
-            my $cto_builder_sub_name = "${class}::_cto_builder";
-            my $cto_builder_sub = $class->can('_cto_builder');
-            if (!$cto_builder_sub) {
-                $cto_builder_sub = sub {
-                    my ($self) = @_;
-                    foreach my $builder (@{$builder{$class}}) {
-                        $self->$builder();
-                    }
-                    $self->SUPER::_cto_builder if $self->can('SUPER::_cto_builder');
-                };
-                { no strict 'refs';
-                  *{$cto_builder_sub_name} = $cto_builder_sub; }
-            }
-            push(@{$builder{$class}}, $method);
+    my $set           = $args{set};
+    my $after_set     = $args{after_set};
+    my $get           = $args{get};
+    my $builder       = $args{builder};
+    my $after_builder = $args{after_builder};
+    my $lazy          = $args{lazy};
+    my $has_default   = exists $args{default};
+    my $default       = $args{default};
+
+    if (!$lazy) {
+        my $cto_builder_sub_name = "${class}::_cto_builder";
+        my $cto_builder_sub = $class->can('_cto_builder');
+        if (!$cto_builder_sub) {
+            $cto_builder_sub = sub {
+                my ($self) = @_;
+                foreach my $builder (@{$builder{$class}}) {
+                    $self->$builder();
+                }
+                $self->SUPER::_cto_builder if $self->can('SUPER::_cto_builder');
+            };
+            { no strict 'refs';
+              *{$cto_builder_sub_name} = $cto_builder_sub; }
         }
+        push(@{$builder{$class}}, $method);
+    }
 
-        $sub = sub {
+    my $getter_sub = sub {
+        my $self = $_[0];
+        if (exists $self->{$method}) {
+            if ($get && (eval { ref $get eq 'CODE' } || $self->can($get))) {
+                return $self->$get($self->{$method});
+            } else {
+                return $self->{$method};
+            }
+        }
+        if ($builder && (eval { ref $builder eq 'CODE' } || $self->can($builder))) {
+            my $result = $self->{$method} = $self->$builder();
+            if ($after_builder && (eval { ref $after_builder eq 'CODE' } || $self->can($after_builder))) {
+                $self->$after_builder();
+            }
+            return $result;
+        }
+        if ($has_default) {
+            return $self->{$method} = $default;
+        }
+        return;
+    };
+
+    my $setter_sub = sub {
+        my $self = $_[0];
+        if ($set && (eval { ref $set eq 'CODE' } || $self->can($set))) {
+            return $self->{$method} = $self->$set($_[1]);
+        } else {
+            return $self->{$method} = $_[1];
+        }
+    };
+
+    my $sub = sub {
+        goto $setter_sub if scalar @_ >= 2;
+        goto $getter_sub;
+    };
+
+    { no strict 'refs'; *{$sub_name} = $sub; }
+
+    my $getter_name = $args{getter_name};
+    my $setter_name = $args{setter_name};
+
+    if (defined $getter_name) {
+        my $getter_sub_name = "${class}::${getter_name}";
+        no strict 'refs';
+        *{$getter_sub_name} = $getter_sub;
+    }
+    if (defined $setter_name) {
+        my $setter_sub_name = "${class}::${setter_name}";
+        no strict 'refs';
+        *{$setter_sub_name} = $setter_sub;
+    }
+
+    my $raw_accessor_name = $args{raw_accessor_name};
+    if (defined $raw_accessor_name) {
+        my $sub_name = "${class}::${raw_accessor_name}";
+        my $sub = sub {
             my $self = $_[0];
             if (scalar @_ >= 2) {
-                if ($set && (eval { ref $set eq 'CODE' } || $self->can($set))) {
-                    return $self->{$method} = $self->$set($_[1]);
-                } else {
-                    return $self->{$method} = $_[1];
-                }
+                return $self->{$method} = $_[1];
             }
             if (exists $self->{$method}) {
-                if ($get && (eval { ref $get eq 'CODE' } || $self->can($get))) {
-                    return $self->$get($self->{$method});
-                } else {
-                    return $self->{$method};
-                }
-            }
-            if ($builder && (eval { ref $builder eq 'CODE' } || $self->can($builder))) {
-                my $result = $self->{$method} = $self->$builder();
-                if ($after_builder && (eval { ref $after_builder eq 'CODE' } || $self->can($after_builder))) {
-                    $self->$after_builder();
-                }
-                return $result;
-            }
-            if ($has_default) {
-                return $self->{$method} = $default;
+                return $self->{$method};
             }
             return;
         };
-
         { no strict 'refs'; *{$sub_name} = $sub; }
+    }
 
-        my $raw_accessor_name = $args{raw_accessor_name};
-        if (defined $raw_accessor_name) {
-            my $sub_name = "${class}::${raw_accessor_name}";
-            my $sub = sub {
-                my $self = $_[0];
-                if (scalar @_ >= 2) {
-                    return $self->{$method} = $_[1];
-                }
-                if (exists $self->{$method}) {
-                    return $self->{$method};
-                }
-                return;
-            };
-            { no strict 'refs'; *{$sub_name} = $sub; }
-        }
-
-        my $delete_name = $args{delete_name};
-        if (defined $delete_name) {
-            my $sub_name = "${class}::${delete_name}";
-            my $sub = sub {
-                my $self = $_[0];
-                return delete $self->{$method};
-            };
-            { no strict 'refs'; *{$sub_name} = $sub; }
-        }
+    my $delete_name = $args{delete_name};
+    if (defined $delete_name) {
+        my $sub_name = "${class}::${delete_name}";
+        my $sub = sub {
+            my $self = $_[0];
+            return delete $self->{$method};
+        };
+        { no strict 'refs'; *{$sub_name} = $sub; }
     }
 }
 
