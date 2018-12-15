@@ -98,58 +98,34 @@ sub public(*;@) {
             push(@{$builder{$class}}, $method);
         }
 
-        if (!$set && !$get && !$builder) {
-            if (!$has_default) {
-                $sub = sub {
-                    if (scalar @_ >= 2) {
-                        return $_[0]->{$method} = $_[1];
-                    }
-                    if (exists $_[0]->{$method}) {
-                        return $_[0]->{$method};
-                    }
-                    return;
-                };
-            } else {
-                $sub = sub {
-                    if (scalar @_ >= 2) {
-                        return $_[0]->{$method} = $_[1];
-                    }
-                    if (exists $_[0]->{$method}) {
-                        return $_[0]->{$method};
-                    }
-                    return $_[0]->{$method} = $default;
-                };
+        $sub = sub {
+            my $self = $_[0];
+            if (scalar @_ >= 2) {
+                if ($set && (eval { ref $set eq 'CODE' } || $self->can($set))) {
+                    return $self->{$method} = $self->$set($_[1]);
+                } else {
+                    return $self->{$method} = $_[1];
+                }
             }
-        } else {
-            $sub = sub {
-                my $self = $_[0];
-                if (scalar @_ >= 2) {
-                    if ($set && (eval { ref $set eq 'CODE' } || $self->can($set))) {
-                        return $self->{$method} = $self->$set($_[1]);
-                    } else {
-                        return $self->{$method} = $_[1];
-                    }
+            if (exists $self->{$method}) {
+                if ($get && (eval { ref $get eq 'CODE' } || $self->can($get))) {
+                    return $self->$get($self->{$method});
+                } else {
+                    return $self->{$method};
                 }
-                if (exists $self->{$method}) {
-                    if ($get && (eval { ref $get eq 'CODE' } || $self->can($get))) {
-                        return $self->$get($self->{$method});
-                    } else {
-                        return $self->{$method};
-                    }
+            }
+            if ($builder && (eval { ref $builder eq 'CODE' } || $self->can($builder))) {
+                my $result = $self->{$method} = $self->$builder();
+                if ($after_builder && (eval { ref $after_builder eq 'CODE' } || $self->can($after_builder))) {
+                    $self->$after_builder();
                 }
-                if ($builder && (eval { ref $builder eq 'CODE' } || $self->can($builder))) {
-                    my $result = $self->{$method} = $self->$builder();
-                    if ($after_builder && (eval { ref $after_builder eq 'CODE' } || $self->can($after_builder))) {
-                        $self->$after_builder();
-                    }
-                    return $result;
-                }
-                if ($has_default) {
-                    return $self->{$method} = $default;
-                }
-                return;
-            };
-        }
+                return $result;
+            }
+            if ($has_default) {
+                return $self->{$method} = $default;
+            }
+            return;
+        };
 
         { no strict 'refs'; *{$sub_name} = $sub; }
 
