@@ -98,34 +98,58 @@ sub public(*;@) {
             push(@{$builder{$class}}, $method);
         }
 
-        $sub = sub {
-            my $self = shift;
-            if (scalar @_) {
-                if (defined $set && $set && (eval { ref $set eq 'CODE' } || $self->can($set))) {
-                    return $self->{$method} = $self->$set(shift);
-                } else {
-                    return $self->{$method} = shift;
+        if (!$set && !$get && !$builder) {
+            if (!$has_default) {
+                $sub = sub {
+                    if (scalar @_ >= 2) {
+                        return $_[0]->{$method} = $_[1];
+                    }
+                    if (exists $_[0]->{$method}) {
+                        return $_[0]->{$method};
+                    }
+                    return;
+                };
+            } else {
+                $sub = sub {
+                    if (scalar @_ >= 2) {
+                        return $_[0]->{$method} = $_[1];
+                    }
+                    if (exists $_[0]->{$method}) {
+                        return $_[0]->{$method};
+                    }
+                    return $_[0]->{$method} = $default;
+                };
+            }
+        } else {
+            $sub = sub {
+                my $self = $_[0];
+                if (scalar @_ >= 2) {
+                    if ($set && (eval { ref $set eq 'CODE' } || $self->can($set))) {
+                        return $self->{$method} = $self->$set($_[1]);
+                    } else {
+                        return $self->{$method} = $_[1];
+                    }
                 }
-            }
-            if (exists $self->{$method}) {
-                if (defined $get && $get && (eval { ref $get eq 'CODE' } || $self->can($get))) {
-                    return $self->$get($self->{$method});
-                } else {
-                    return $self->{$method};
+                if (exists $self->{$method}) {
+                    if ($get && (eval { ref $get eq 'CODE' } || $self->can($get))) {
+                        return $self->$get($self->{$method});
+                    } else {
+                        return $self->{$method};
+                    }
                 }
-            }
-            if (defined $builder && $builder && (eval { ref $builder eq 'CODE' } || $self->can($builder))) {
-                my $result = $self->{$method} = $self->$builder();
-                if (defined $after_builder && $after_builder && (eval { ref $after_builder eq 'CODE' } || $self->can($after_builder))) {
-                    $self->$after_builder();
+                if (defined $builder && $builder && (eval { ref $builder eq 'CODE' } || $self->can($builder))) {
+                    my $result = $self->{$method} = $self->$builder();
+                    if ($after_builder && (eval { ref $after_builder eq 'CODE' } || $self->can($after_builder))) {
+                        $self->$after_builder();
+                    }
+                    return $result;
                 }
-                return $result;
-            }
-            if ($has_default) {
-                return $self->{$method} = $default;
-            }
-            return;
-        };
+                if ($has_default) {
+                    return $self->{$method} = $default;
+                }
+                return;
+            };
+        }
 
         { no strict 'refs'; *{$sub_name} = $sub; }
 
@@ -133,9 +157,9 @@ sub public(*;@) {
         if (defined $raw_accessor_name) {
             my $sub_name = "${class}::${raw_accessor_name}";
             my $sub = sub {
-                my $self = shift;
-                if (scalar @_) {
-                    return $self->{$method} = shift;
+                my $self = $_[0];
+                if (scalar @_ >= 2) {
+                    return $self->{$method} = $_[1];
                 }
                 if (exists $self->{$method}) {
                     return $self->{$method};
@@ -149,7 +173,7 @@ sub public(*;@) {
         if (defined $delete_name) {
             my $sub_name = "${class}::${delete_name}";
             my $sub = sub {
-                my $self = shift;
+                my $self = $_[0];
                 return delete $self->{$method};
             };
             { no strict 'refs'; *{$sub_name} = $sub; }
