@@ -48,19 +48,21 @@ sub public(*;@) {
     my $class = caller;
     my $sub_name = "${class}::${method}";
 
-    if (defined $args{lazy_default}) { # legacy
-        $args{builder} = delete $args{lazy_default};
+    local *legacy = sub {
+        my ($old, $new) = @_;
+        if (exists $args{$old}) {
+            return $args{$new} = delete $args{$old};
+        }
+        return;
+    };
+
+    if (defined legacy(lazy_default => 'builder')) {
         $args{lazy} = 1;
     }
-
-    if (defined $args{sub_default}) { # legacy
-        $args{builder} = delete $args{sub_default};
+    if (defined legacy(sub_default => 'builder')) {
         $args{lazy} = 0;
     }
-
-    if (defined $args{delete}) { # legacy
-        $args{delete_name} = delete $args{delete};
-    }
+    legacy(delete => 'delete_name');
 
     if (defined $args{delegate}) {
         my $delegate = $args{delegate};
