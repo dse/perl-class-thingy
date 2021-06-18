@@ -76,7 +76,10 @@ sub import {
         return $self;
     };
 
+    my $hasName = "${className}::has";
+
     no strict 'refs';
+    *{$hasName} = \&has;
     *{$constructorName} = $constructorSub;
 }
 
